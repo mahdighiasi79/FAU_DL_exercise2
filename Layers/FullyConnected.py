@@ -1,24 +1,17 @@
 import numpy as np
-# import Base
+from . import Base
 
 
-class FullyConnected:
+class FullyConnected(Base.BaseLayer):
 
     def __init__(self, input_size, output_size):
-        # super().__init__()
+        super().__init__()
         self.trainable = True
         self.weights = np.random.uniform(0, 1, (input_size + 1) * output_size).reshape(((input_size + 1), output_size))
         self._optimizer = None
         self._gradient_weights = None
         self.input_tensor = np.array([])
         self.type = "FullyConnected"
-
-    def initialize(self, weights_initializer, bias_initializer):
-        rows, columns = self.weights.shape
-        weights_shape = (rows - 1, columns)
-        bias_shape = (1, columns)
-        self.weights[:rows - 1] = weights_initializer.initialize(weights_shape, rows - 1, columns)
-        self.weights[rows - 1] = bias_initializer(bias_shape, 1, columns)
 
     def forward(self, input_tensor):
         self.input_tensor = input_tensor

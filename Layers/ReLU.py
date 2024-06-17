@@ -1,12 +1,11 @@
 import numpy as np
-# import Base
+from . import Base
 
 
-class ReLU:
+class ReLU(Base.BaseLayer):
 
     def __init__(self):
-        # super().__init__()
-        self.trainable = False
+        super().__init__()
         self.input_tensor = np.array([])
         self.type = "ReLU"
 

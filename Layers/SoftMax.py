@@ -1,13 +1,12 @@
-# import Base
+from . import Base
 import numpy as np
 import copy
 
 
-class SoftMax:
+class SoftMax(Base.BaseLayer):
 
     def __init__(self):
-        # super().__init__()
-        self.trainable = False
+        super().__init__()
         self.output_tensor = np.array([])
         self.type = "SoftMax"
 
