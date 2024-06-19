@@ -13,6 +13,13 @@ class FullyConnected(Base.BaseLayer):
         self.input_tensor = np.array([])
         self.type = "FullyConnected"
 
+    def initialize(self, weights_initializer, bias_initializer):
+        input_size, output_size = self.weights.shape
+        input_size -= 1
+        weights = weights_initializer.initialize((input_size, output_size), input_size, output_size)
+        biases = bias_initializer.initialize((1, output_size), 1, output_size)
+        self.weights = np.concatenate((weights, biases), axis=0)
+
     def forward(self, input_tensor):
         self.input_tensor = input_tensor
         weights = self.weights[0: len(self.weights) - 1]
