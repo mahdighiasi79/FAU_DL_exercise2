@@ -19,7 +19,7 @@ class Conv(Base.BaseLayer):
             weights_shape = [num_kernels, convolution_shape[0], convolution_shape[1]]
         else:
             convolution_size = convolution_shape[0] * convolution_shape[1] * convolution_shape[2]
-            weights_shape = [num_kernels, convolution_shape[0], convolution_shape[1] * convolution_shape[2]]
+            weights_shape = [num_kernels, convolution_shape[0], convolution_shape[1], convolution_shape[2]]
 
         self.weights = Init.UniformRandom.initialize(weights_shape, num_kernels, convolution_size)
         self.bias = Init.Constant().initialize((num_kernels,), num_kernels, 1)
@@ -143,24 +143,25 @@ class Conv(Base.BaseLayer):
         new_error_tensor = np.zeros(self.convolution_input.shape)
 
         if len(error_tensor.shape) == 3:
-            batch_size, num_channels, x_size = error_tensor.shape
-            gradient_weights = np.zeros(
-                (batch_size, self.num_kernels, self.convolution_shape[0], self.convolution_shape[1]))
+
+            batch_size, num_channels, x_out = error_tensor.shape
+            gradient_weights = np.zeros((batch_size, self.num_kernels, self.convolution_shape[0], self.convolution_shape[1]))
             self.gradient_bias = np.sum(error_tensor, axis=(0, 2), keepdims=False)
 
-            for i in range(num_channels):
-                for j in range(x_size):
+            for i in range(self.num_kernels):
+                for j in range(x_out):
                     start_index = j * self.stride_shape[0]
                     end_index = start_index + self.convolution_shape[1]
+
                     for k in range(start_index, end_index):
                         gradients = copy.deepcopy(self.convolution_input[:, :, k]).transpose() * error_tensor[:, i, j]
-                        gradient_weights[:, i, :, j] += copy.deepcopy(gradients).transpose()
+                        gradient_weights[:, i, :, k - start_index] += gradients.transpose()
+
                     for k in range(batch_size):
                         new_error_tensor[k, :, start_index:end_index] += self.weights[i, :, :] * error_tensor[k][i][j]
 
-            error_tensor = new_error_tensor[:, :,
-                           self.x_right_padding:(self.convolution_input[2] - self.x_left_padding)]
             self.gradient_weights = np.sum(gradient_weights, axis=0, keepdims=False)
+            error_tensor = new_error_tensor[:, :, self.x_right_padding:(self.convolution_input.shape[2] - self.x_left_padding)]
 
         else:
             if len(self.stride_shape) == 1:
@@ -176,21 +177,24 @@ class Conv(Base.BaseLayer):
                 for j in range(x_size):
                     x_start_index = j * x_stride
                     x_end_index = x_start_index + self.convolution_shape[1]
+
                     for k in range(y_size):
                         y_start_index = k * y_stride
                         y_end_index = y_start_index + self.convolution_shape[2]
+
                         for l in range(x_start_index, x_end_index):
                             for m in range(y_start_index, y_end_index):
                                 gradients = copy.deepcopy(self.convolution_input[:, :, l, m]).transpose() * error_tensor[:, i, j, k]
-                                gradient_weights[:, i, :, j, k] += copy.deepcopy(gradients).transpose()
+                                gradient_weights[:, i, :, l - x_start_index, m - y_start_index] += gradients.transpose()
+
                         for l in range(batch_size):
                             new_error_tensor[l, :, x_start_index:x_end_index,
                             y_start_index:y_end_index] += self.weights[i, :, :, :] * error_tensor[l][i][j][k]
 
-            error_tensor = new_error_tensor[:, :,
-                           self.x_right_padding:(self.convolution_input[2] - self.x_left_padding),
-                           self.y_right_padding:(self.convolution_input[3] - self.y_left_padding)]
             self.gradient_weights = np.sum(gradient_weights, axis=0, keepdims=False)
+            error_tensor = new_error_tensor[:, :,
+                           self.x_right_padding:(self.convolution_input.shape[2] - self.x_left_padding),
+                           self.y_right_padding:(self.convolution_input.shape[3] - self.y_left_padding)]
 
         return error_tensor
 
