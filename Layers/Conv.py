@@ -13,16 +13,16 @@ class Conv(Base.BaseLayer):
         self.stride_shape = stride_shape
         self.convolution_shape = convolution_shape
         self.num_kernels = num_kernels
+        self.convolution_size = np.prod(convolution_shape)
 
         if len(convolution_shape) == 2:
-            convolution_size = convolution_shape[0] * convolution_shape[1]
             weights_shape = [num_kernels, convolution_shape[0], convolution_shape[1]]
         else:
-            convolution_size = convolution_shape[0] * convolution_shape[1] * convolution_shape[2]
             weights_shape = [num_kernels, convolution_shape[0], convolution_shape[1], convolution_shape[2]]
 
-        self.weights = Init.UniformRandom.initialize(weights_shape, num_kernels, convolution_size)
-        self.bias = Init.Constant().initialize((num_kernels,), num_kernels, 1)
+        self.weights = Init.UniformRandom.initialize(weights_shape, np.prod(self.convolution_shape),
+                                                     np.prod(self.convolution_shape[1:] * num_kernels))
+        self.bias = Init.Constant().initialize((num_kernels,), 1, num_kernels)
         self._gradient_weights = None
         self._gradient_bias = None
         self._optimizer = None
@@ -88,12 +88,15 @@ class Conv(Base.BaseLayer):
             output = []
             for i in range(self.num_kernels):
                 channel = []
+
                 for j in range(n_x):
                     start_index = j * x_stride
                     end_index = start_index + x_filter_size
+
                     convolve = convolution_input[:, :, start_index:end_index] * self.weights[i]
                     convolve = np.sum(convolve, axis=(1, 2), keepdims=False)
                     channel.append(convolve)
+
                 channel = np.array(channel)
                 channel += self.bias[i]
                 output.append(channel)
@@ -119,16 +122,21 @@ class Conv(Base.BaseLayer):
             output = []
             for i in range(self.num_kernels):
                 channel = []
+
                 for j in range(n_x):
                     x_out = []
                     x_start_index = j * x_stride
                     x_end_index = x_start_index + x_filter_size
+
                     for k in range(n_y):
                         y_start_index = k * y_stride
                         y_end_index = y_start_index + y_filter_size
-                        convolve = convolution_input[:, :, x_start_index:x_end_index, y_start_index:y_end_index] * self.weights[i]
+
+                        convolve = convolution_input[:, :, x_start_index:x_end_index, y_start_index:y_end_index] * \
+                                   self.weights[i]
                         convolve = np.sum(convolve, axis=(1, 2, 3), keepdims=False)
                         x_out.append(convolve)
+
                     x_out = np.array(x_out)
                     channel.append(x_out)
                 channel = np.array(channel)
@@ -145,7 +153,8 @@ class Conv(Base.BaseLayer):
         if len(error_tensor.shape) == 3:
 
             batch_size, num_channels, x_out = error_tensor.shape
-            gradient_weights = np.zeros((batch_size, self.num_kernels, self.convolution_shape[0], self.convolution_shape[1]))
+            gradient_weights = np.zeros(
+                (batch_size, self.num_kernels, self.convolution_shape[0], self.convolution_shape[1]))
             self.gradient_bias = np.sum(error_tensor, axis=(0, 2), keepdims=False)
 
             for i in range(self.num_kernels):
@@ -161,7 +170,8 @@ class Conv(Base.BaseLayer):
                         new_error_tensor[k, :, start_index:end_index] += self.weights[i, :, :] * error_tensor[k][i][j]
 
             self.gradient_weights = np.sum(gradient_weights, axis=0, keepdims=False)
-            error_tensor = new_error_tensor[:, :, self.x_right_padding:(self.convolution_input.shape[2] - self.x_left_padding)]
+            error_tensor = new_error_tensor[:, :,
+                           self.x_right_padding:(self.convolution_input.shape[2] - self.x_left_padding)]
 
         else:
             if len(self.stride_shape) == 1:
@@ -184,7 +194,8 @@ class Conv(Base.BaseLayer):
 
                         for l in range(x_start_index, x_end_index):
                             for m in range(y_start_index, y_end_index):
-                                gradients = copy.deepcopy(self.convolution_input[:, :, l, m]).transpose() * error_tensor[:, i, j, k]
+                                gradients = copy.deepcopy(
+                                    self.convolution_input[:, :, l, m]).transpose() * error_tensor[:, i, j, k]
                                 gradient_weights[:, i, :, l - x_start_index, m - y_start_index] += gradients.transpose()
 
                         for l in range(batch_size):
@@ -196,7 +207,14 @@ class Conv(Base.BaseLayer):
                            self.x_right_padding:(self.convolution_input.shape[2] - self.x_left_padding),
                            self.y_right_padding:(self.convolution_input.shape[3] - self.y_left_padding)]
 
+        if self.optimizer is not None:
+            weights_optimizer = copy.deepcopy(self.optimizer)
+            bias_optimizer = copy.deepcopy(self.optimizer)
+            weights_optimizer.calculate_update(self.weights, self.gradient_weights)
+            bias_optimizer.calculate_update(self.bias, self.gradient_bias)
         return error_tensor
 
     def initialize(self, weights_initializer, bias_initializer):
-        pass
+        self.weights = weights_initializer.initialize(self.weights.shape, np.prod(self.convolution_shape),
+                                                      np.prod(self.convolution_shape[1:]) * self.num_kernels)
+        self.bias = bias_initializer.initialize(self.bias.shape, 1, self.num_kernels)

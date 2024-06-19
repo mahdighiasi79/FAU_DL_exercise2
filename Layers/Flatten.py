@@ -1,15 +1,19 @@
-class Flatten:
+from . import Base
+
+
+class Flatten(Base.BaseLayer):
 
     def __init__(self):
-        self.trainable = False
+        super().__init__()
+        self.input_shape = None
 
-    @staticmethod
-    def forward(input_tensor):
-        shape = input_tensor.shape
-        num_samples = shape[0]
-        flat = shape[1] * shape[2] * shape[3]
+    def forward(self, input_tensor):
+        self.input_shape = input_tensor.shape
+        num_samples = self.input_shape[0]
+        flat = 1
+        for i in range(1, len(self.input_shape)):
+            flat *= self.input_shape[i]
         return input_tensor.reshape((num_samples, flat))
 
-    @staticmethod
-    def backward(error_tensor):
-        return error_tensor.reshape((9, 3, 4, 11))
+    def backward(self, error_tensor):
+        return error_tensor.reshape(self.input_shape)
