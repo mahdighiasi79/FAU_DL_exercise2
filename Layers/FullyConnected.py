@@ -1,5 +1,6 @@
 import numpy as np
 from . import Base
+from . import Initializers as Init
 
 
 class FullyConnected(Base.BaseLayer):
@@ -7,7 +8,9 @@ class FullyConnected(Base.BaseLayer):
     def __init__(self, input_size, output_size):
         super().__init__()
         self.trainable = True
-        self.weights = np.random.uniform(0, 1, (input_size + 1) * output_size).reshape(((input_size + 1), output_size))
+        self.weights = np.zeros((input_size + 1, output_size))
+        self.weights[:input_size, :] = Init.He.initialize((input_size, output_size), input_size, output_size)
+        self.weights[input_size, :] = Init.Constant().initialize((1, output_size), 1, output_size)
         self._optimizer = None
         self._gradient_weights = None
         self.input_tensor = np.array([])
