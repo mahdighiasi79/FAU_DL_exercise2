@@ -10,6 +10,7 @@ class Pooling(Base.BaseLayer):
         super().__init__()
         self.stride_shape = stride_shape
         self.pooling_shape = pooling_shape
+        self.type = "Pooling"
         self.input_tensor = None
         self.output_tensor = None
 

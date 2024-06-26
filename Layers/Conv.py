@@ -14,6 +14,7 @@ class Conv(Base.BaseLayer):
         self.convolution_shape = convolution_shape
         self.num_kernels = num_kernels
         self.convolution_size = np.prod(convolution_shape)
+        self.type = "Convolution"
 
         if len(convolution_shape) == 2:
             weights_shape = [num_kernels, convolution_shape[0], convolution_shape[1]]
